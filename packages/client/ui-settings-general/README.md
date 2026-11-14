@@ -26,6 +26,8 @@ The Settings panel uses a shared 800 × 800 layout, bounded by the viewport. Lon
 
 In browsers below 768px viewport width, the panel fills the viewport and navigation becomes a horizontal strip: the title shares the first row with the header's action and close seats, the registered section cells scroll sideways on the second, and the active section fills the rest. Cells grow into spare width and hold a minimum width, and the strip scrolls instead of truncating, so a registrant's label length or a longer section roster cannot wrap or clip a name; the selected cell carries initial focus, which brings it into the strip's view. Section content keeps a 16px inline padding at that width, and the 48px gutter separating a preference label from its control narrows with it.
 
+In that strip, a horizontal swipe across the section content changes section: a finger or a pen — never a mouse, and never a drag that starts on a form control or inside the strip itself — follows the pointer 1:1 through 24px of content travel and commits past a quarter of the panel's width. The ArrowLeft and ArrowRight keys, with Home and End, change section from the navigation. Neither mode wraps: the first and last section keep their place. The desktop rail keeps its ordinary Tab and click behavior and ignores the keys.
+
 <a id="use-this-package"></a>
 ## Use this package
 

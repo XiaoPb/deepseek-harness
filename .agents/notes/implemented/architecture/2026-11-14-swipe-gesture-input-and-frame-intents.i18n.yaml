@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-11-14-swipe-gesture-input-and-frame-intents.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-14-swipe-gesture-input-and-frame-intents.md
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around:
+  en: fa3bc4947237141b
+  zh: 2d1e3e0decd22dbf
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around/problem:
+  en: ef6e358ff3aece6e
+  zh: 332d24e025e178bc
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around/decision:
+  en: a15c7c13f167e5ac
+  zh: 63bcc2ef60c2f344
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around/decision/the-swipe-input-rule-is-a-whitelist:
+  en: 3c67f37853a193cc
+  zh: c2ac6ca243e321f1
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around/decision/the-frame-exposes-right-column-intents-not-state:
+  en: 0aa363922f32165f
+  zh: a0be761d5c9ec11a
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around/decision/the-strip-presentation-changes-section-without-wrapping:
+  en: c0288fd8fc42c8e6
+  zh: 9fcbb955fc9cdb63
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around/alternatives-considered:
+  en: ad7bbf795f2fc31e
+  zh: 3198f1a8d5bedb4a
+/agent-note-swipe-gestures-an-input-whitelist-frame-intents-and-no-wrap-around/consequences:
+  en: 11e1e44c05b496ee
+  zh: ad65ef2a10575842
