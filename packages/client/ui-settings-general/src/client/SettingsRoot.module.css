@@ -248,6 +248,32 @@
   min-height: 0;
   padding: 0 24px 24px;
   overflow-y: auto;
+  /* Strip navigation: a section swipe moves the content with the pointer
+     through these variables (SettingsRoot) and hands vertical travel to the
+     scroller. The rail presentation leaves them at rest. */
+  transform: translateX(var(--dsh-settings-swipe-x, 0));
+  opacity: var(--dsh-settings-swipe-opacity, 1);
+  touch-action: pan-y;
+}
+
+/* No transition while the pointer drives the content, and for callers that
+   asked for reduced motion; the spring-back supplies its own duration. */
+.options[data-swiping],
+.options[data-swiping] * {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .options {
+    transition: none;
+  }
+}
+
+/* The spring-back's own duration, set by the component when it returns the
+   content to rest; the strip presentation is where a swipe runs. */
+.options[style*='--dsh-settings-swipe-transition'] {
+  transition: transform var(--dsh-settings-swipe-transition) cubic-bezier(0.4, 0, 0.2, 1),
+    opacity var(--dsh-settings-swipe-transition) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Browsers below 768px use the full-viewport panel and horizontal navigation.

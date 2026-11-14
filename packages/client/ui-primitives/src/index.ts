@@ -72,6 +72,12 @@ export { UserTextRun, ReferenceChip, type UserTextRunProps, type ReferenceChipPr
 export { Tooltip } from './Tooltip.tsx'
 export type { TooltipSide } from './Tooltip.tsx'
 export { pointerModality } from './input-modality.ts'
+export {
+  SWIPE_ACTIVATE_PX, SWIPE_AXIS_SLOPE, SWIPE_COMMIT_RATIO, SWIPE_COMMIT_VELOCITY, SWIPE_ZONE_RATIO,
+  commitDecision, confirmSwipeTarget, distance, isFormControlTarget, isHorizontalSwipe, isSwipePointer,
+  resolveSwipeTarget, revealTravel, startInsideZone, swipeActivated, swipeProgress,
+} from './swipe.ts'
+export type { SwipePointerEvent, SwipeSide, SwipeTarget, SwipeTargetInput } from './swipe.ts'
 export { Toast } from './Toast.tsx'
 export { fileSizeText } from './file-size.ts'
 export { writeClipboard } from './clipboard.ts'

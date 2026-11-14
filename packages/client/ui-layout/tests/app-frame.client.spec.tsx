@@ -66,6 +66,7 @@ function resize(width: number): void {
 function mountFrame(windowWidth = frameWidth, content?: AppFrameProps['renderSlot']) {
   vi.stubGlobal('innerWidth', windowWidth)
   const instance = createLayoutStore().create()
+  const frameIntents = { openRightbarIntent: vi.fn(), closeRightbarIntent: vi.fn() }
   const slotCalls: { key: string; props: object; options: RenderOpts | undefined }[] = []
   const renderSlot: AppFrameProps['renderSlot'] = (key, owner, options) => {
     slotCalls.push({ key, props: owner, options })
@@ -99,6 +100,7 @@ function mountFrame(windowWidth = frameWidth, content?: AppFrameProps['renderSlo
       useSessions={useSessions}
       usePanelInfo={usePanelInfo}
       useFoldedLandscape={bindSnapshotSelector(foldedLandscape)}
+      frame={frameIntents}
       useSessionStatus={useSessionStatus}
       useSessionRetainInfo={() => undefined}
       useContextMenu={contextMenuHook()} useResource={useResource}
@@ -110,7 +112,7 @@ function mountFrame(windowWidth = frameWidth, content?: AppFrameProps['renderSlo
   const utils = render(element())
   const frame = utils.container.firstElementChild as HTMLElement
   return {
-    ...utils, instance, frame, slotCalls,
+    ...utils, instance, frame, slotCalls, frameIntents,
     rerenderFrame: () => { utils.rerender(element()) },
     rightOwner: () => slotCalls.findLast(c => c.key === 'rightbar')!.props as RightbarOwnerProps,
     sidebarOwner: () => slotCalls.findLast(c => c.key === 'sidebar')!.props as SidebarOwnerProps,
@@ -795,5 +797,58 @@ describe('sidebar drawer', () => {
     resize(767)
     expect(sidebarOwner().collapsed).toBe(true)
     expect(tracks(frame)).toEqual([0, 0])
+  })
+
+  it('leaves no swipe behind a covering dialog', () => {
+    frameWidth = 390
+    const { frame, sidebarOwner, frameIntents } = mountFrame()
+    const dialog = document.createElement('div')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.setAttribute('data-shortcut-modal', 'settings')
+    document.body.append(dialog)
+    const send = (type: string, clientX: number): void => {
+      const event = new Event(type, { bubbles: true })
+      Object.defineProperties(event, {
+        pointerId: { value: 11 },
+        clientX: { value: clientX },
+        clientY: { value: 200 },
+        pointerType: { value: 'touch' },
+        isPrimary: { value: true },
+      })
+      act(() => { frame.dispatchEvent(event) })
+    }
+    send('pointerdown', 60)
+    send('pointermove', 200)
+    send('pointermove', 320)
+    send('pointerup', 320)
+    expect(sidebarOwner().collapsed).toBe(true)
+    expect(frameIntents.openRightbarIntent).not.toHaveBeenCalled()
+    expect(frameIntents.closeRightbarIntent).not.toHaveBeenCalled()
+    dialog.remove()
+  })
+
+  it('keeps swiping while the left drawer is its own modal', () => {
+    frameWidth = 390
+    const { frame, sidebarOwner } = mountFrame()
+    const drawer = document.createElement('div')
+    drawer.setAttribute('aria-modal', 'true')
+    drawer.setAttribute('data-shortcut-modal', 'sidebar')
+    document.body.append(drawer)
+    const send = (type: string, clientX: number): void => {
+      const event = new Event(type, { bubbles: true })
+      Object.defineProperties(event, {
+        pointerId: { value: 12 },
+        clientX: { value: clientX },
+        clientY: { value: 200 },
+        pointerType: { value: 'touch' },
+        isPrimary: { value: true },
+      })
+      act(() => { frame.dispatchEvent(event) })
+    }
+    send('pointerdown', 60)
+    send('pointermove', 300)
+    send('pointerup', 300)
+    drawer.remove()
+    expect(sidebarOwner().collapsed).toBe(false)
   })
 })

@@ -1124,7 +1124,7 @@ describe('real Loader composition', () => {
       '<head>',
       '<script>window.__Q__=1</script>',
       '<script src="/plugins/a.js?rev=&quot;1&quot;&amp;x=&lt;y&gt;"></script>',
-      '<link rel="preload" as="script" href="/plugins/b.js?rev=&quot;2&quot;&amp;x=&lt;z&gt;">',
+      '<script src="/plugins/b.js?rev=&quot;2&quot;&amp;x=&lt;z&gt;"></script>',
       'globalThis["__DSH_BOOT__"] = {"rev":"\\u003c/script>\\u003cb>"}',
       '<style>body{margin:0}</style>',
       '<meta name="probe">',

@@ -60,6 +60,7 @@ type LayoutActions = {
   retainMainPanels: (draft: LayoutState, panelIds: readonly string[]) => void
   setSidebar: (draft: LayoutState, px: number) => void
   toggleSidebar: (draft: LayoutState) => void
+  setSidebarExpanded: (draft: LayoutState, expanded: boolean) => void
   setViewportWidth: (draft: LayoutState, width: number) => void
   setRightbar: (draft: LayoutState, px: number) => void
   openRightbar: (draft: LayoutState, track: boolean, fullscreen: boolean) => void
@@ -110,6 +111,20 @@ export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutAction
         d.layoutInfo.rightbarInstant = false
         if (d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) d.layoutInfo.narrowExpanded = !d.layoutInfo.narrowExpanded
         else d.layoutInfo.sidebar = d.layoutInfo.sidebar === 0 ? SIDEBAR_DEFAULT : 0
+      },
+      // A commit names one direction, so a gesture cannot invert a state that
+      // changed between its press and its release.
+      setSidebarExpanded: (d, expanded: boolean) => {
+        d.layoutInfo.rightbarInstant = false
+        if (d.layoutInfo.viewportWidth < SIDEBAR_AUTO_COLLAPSE) {
+          d.layoutInfo.narrowExpanded = expanded
+          return
+        }
+        if (expanded) {
+          if (d.layoutInfo.sidebar === 0) d.layoutInfo.sidebar = SIDEBAR_DEFAULT
+          return
+        }
+        d.layoutInfo.sidebar = 0
       },
       // Crossing the breakpoint in either direction drops the override: the
       // narrow default is auto-collapsed, the wide state is the preference.

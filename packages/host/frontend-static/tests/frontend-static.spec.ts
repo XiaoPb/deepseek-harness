@@ -196,7 +196,7 @@ describe('real Loader composition', () => {
       // app-owned routes and the Host's resource rows resolve under one mount.
       expect(got.body.match(/<base\b/g)).toHaveLength(1)
       const base = got.body.indexOf('<base href="./">')
-      expect(base).toBeLessThan(got.body.indexOf('<link rel="preload" as="script" href="plugins/boot.js">'))
+      expect(base).toBeLessThan(got.body.indexOf('<script src="plugins/boot.js"></script>'))
       expect(base).toBeLessThan(got.body.indexOf('<script>window.__T__=1</script>'))
     }
     // Default-token requests render for the Peer owned by the token provider.

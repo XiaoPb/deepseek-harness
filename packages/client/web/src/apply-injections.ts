@@ -34,7 +34,10 @@ export async function applyIndexInjections(
         await loadScript(row.src)
         break
       case 'script-preload':
-        // Some transports cannot preload without executing; loadScript owns the actual request.
+        // The served page executes this row as a `<link rel=preload>` parser hint, which a
+        // page-side interpreter cannot install; running the same script is what registers
+        // the batch's bundle factories before the shell imports them.
+        await loadScript(row.src)
         break
       case 'style': {
         const el = document.createElement('style')

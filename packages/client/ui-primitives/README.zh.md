@@ -184,6 +184,10 @@ kind: "package-library"
 
 [`input-modality.ts`](src/input-modality.ts) 为 tooltip 跟踪输入，并在 `<html>` 上发布 `data-input-modality`，供[主题焦点样式](../ui-theme/README.zh.md#understand-the-implementation)使用。`pointerModality()` 在指针输入后为 true，在任意按键后为 false，包括 IME（输入法）组合输入按键；`Tooltip` 据此决定聚焦时是否可以显示气泡。发布的属性保持 `pointer`，直到非组合输入的导航键（Tab、方向键、Home/End、PageUp/PageDown）到达，或非组合输入按键之后焦点移到不同控件。重新聚焦同一控件不会恢复键盘模态。指针输入、IME 组合输入按键和 window blur 都会清除待处理按键；没有待处理按键的焦点变化不改变模态。监听器与文档同寿命；从 Node 导入时不安装监听器。 焦点变化规则只观察传到 window 的事件；shadow root 内部不向外暴露这些事件的额外导航由组件负责。
 
+### 滑动输入
+
+[`swipe.ts`](src/swipe.ts) 承载水平滑动所需的纯规则，使框架的侧栏手势与设置面板的分区手势共用同一套定义，而不是两份逐渐分叉的阈值。`isSwipePointer` 只接受主接触点的 `touch` 与 `pen`，因此鼠标保留桌面拖动与文本选择，未分类的设备保持惰性；`isFormControlTarget` 把起点落在表单控件上的手势留给该控件。`swipeActivated` 与 `isHorizontalSwipe` 决定一次按下是否成为水平手势，`swipeProgress` 依据手势开始时冻结的轨道宽度给出 0–1 的进度，`commitDecision` 在该宽度的 30% 之后、或达到 0.5px/ms 的快速轻扫时提交。`startInsideZone`、`resolveSwipeTarget` 与 `confirmSwipeTarget` 判定起点作用于哪一栏：每侧从外半侧开启，两个区域在框架中线相接，收起方向跟随离开已展开栏的拖动。几何由调用方负责——这些函数只报告进度，像素由各自的界面写入。
+
 ### 流式 Markdown
 
 回复流式输出期间，`MarkdownText` 增量解析：除末尾两个块外全部冻结为缓存的 React 元素，每个分片只重新解析其后的源文本尾部，因此每分片的工作量跟随尾部而非整个回复。末尾的顶层未闭合 fence 会保留已解析的 code node，只把最后一个已完成行与当前未完成行交给同一套 GFM grammar；闭合 fence 或有歧义的解析会回到普通尾部路径。高亮同样从保存的 Shiki grammar state 续接，并只发布新完成行与可变尾部。`CodeBlock` 把已完成行封入固定大小的 React 分组、复用更早的分组，并在代码与语言未变化时跨定稿保留整棵高亮树。定稿时的全量解析仍会解析跨过冻结边界的引用。
