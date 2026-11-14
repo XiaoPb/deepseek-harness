@@ -198,6 +198,13 @@ interface TabSlotProps extends Pick<PanelProps, 'renderSlot' | 'occurrence' | 'u
 }
 
 /**
+ * Frame width below which the column reserves no track and an expanded panel is
+ * presented fullscreen: the frame's own drawer breakpoint, restated here
+ * because widening this column's screen also widens the frame.
+ */
+const NARROW_FULLSCREEN_MAX_WIDTH = 768
+
+/**
  * Dispatch one tab's body or title with stable framework hooks and record lifetime.
  */
 function TabSlot({
@@ -398,7 +405,9 @@ export function RightbarSeat({
   const shortcuts = useShortcuts(entries => entries)
   const surface = useStore(state => state.bySession[sessionId])
   const shown = active && surface !== undefined && surface.layout.expanded
-  const autoFullscreen = viewportWidth < 768
+  // The frame's drawer breakpoint: below it an expanded panel is presented
+  // fullscreen, because the column no longer reserves a track.
+  const autoFullscreen = viewportWidth < NARROW_FULLSCREEN_MAX_WIDTH
   const fullscreen = autoFullscreen || surface?.layout.mode === 'fullscreen'
   const panelRef = useRef<HTMLDivElement | null>(null)
   // A reading never re-renders anything: the service applies it when it splits.

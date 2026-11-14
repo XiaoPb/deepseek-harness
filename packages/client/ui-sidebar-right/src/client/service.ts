@@ -271,6 +271,14 @@ export interface ISidebarRight {
   /** Collapse the column, or expand it and focus its active dock pane. Recorded in the sequence. */
   toggleExpanded(): void
   /**
+   * Commit one expansion direction without toggling. The frame's `ctx.layout`
+   * intents use it; an expanded column has nothing to expand, and a collapsed
+   * one nothing to collapse. With no Session on screen, or one whose store the
+   * runtime has not minted, it does nothing.
+   * @param expanded - the direction to commit.
+   */
+  setExpanded(expanded: boolean): void
+  /**
    * Focus a tab and the pane holding it, raising a floating one. Recorded.
    * @param tabId - the tab; one that does not exist is left alone.
    */
@@ -610,6 +618,21 @@ export class SidebarRightController implements ISidebarRight {
       actions.toggleExpanded(sessionId)
       const layout = this.mountedSurface()?.layout
       return layout?.expanded ? activeDockPaneId(layout) : undefined
+    })
+  }
+
+  /** Commit one expansion direction for the on-screen Session, when it changes anything. */
+  setExpanded(expanded: boolean): void {
+    const sessionId = this.mounted.getSnapshot()
+    if (sessionId === undefined) return
+    if (this.isExpanded() === expanded) return
+    const actions = this.actionsFor(sessionId)
+    if (actions === undefined) return
+    this.host.openWithFocus(sessionId, () => {
+      actions.setExpanded(sessionId, expanded)
+      const layout = this.mountedSurface()?.layout
+      if (layout === undefined) return undefined
+      return expanded ? activeDockPaneId(layout) : undefined
     })
   }
 

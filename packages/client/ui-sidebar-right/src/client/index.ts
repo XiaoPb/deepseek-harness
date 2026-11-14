@@ -32,6 +32,7 @@ import type {} from '@deepseek-ai/dsh-client-resources/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { LayoutController } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -135,6 +136,15 @@ export function apply(ctx: ClientContext): void {
       closeWithFocus: (sessionId, paneId, close) => { closeWithPaneFocus(document, sessionId, paneId, close) },
     },
   )
+  // The frame names the on-screen Session through the controller; the expand
+  // and collapse commands its face forwards act on that Session's own store.
+  // The frame's public face does not expose the registration itself, so the
+  // plugin reaches the concrete controller it was given.
+  const frame = layout as LayoutController
+  ctx.effect(() => frame.registerRightbarIntents({
+    open: () => { controller.setExpanded(true) },
+    close: () => { controller.setExpanded(false) },
+  }), 'ui-sidebar-right: frame intents')
   ctx.effect(() => ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({
     name: 'contextMenu.icon', key: 'sidebar.close',
   }, IconCloseOutlineRegular)), 'sidebar: menu icon')

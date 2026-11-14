@@ -70,6 +70,7 @@ async function boot(shortcuts: Partial<Shortcuts> = {}) {
   }
   const layout = {
     openRightbar: vi.fn(), closeRightbar: vi.fn(),
+    registerRightbarIntents: vi.fn<(intents: { open: () => void; close: () => void }) => () => void>(() => () => {}),
     panelInfo: createSnapshotStore<{ activePanelId: string | null }>({ activePanelId: null }),
   }
   const current = createSnapshotStore<{ key: SessionId | undefined }>({ key: undefined })
@@ -102,6 +103,42 @@ async function boot(shortcuts: Partial<Shortcuts> = {}) {
 describe('ui-sidebar-right apply', () => {
   it('keeps the host Loader entry inert', () => {
     expect(hostApply).not.toThrow()
+  })
+
+  it('answers the frame\'s expand and collapse intents with the on-screen Session\'s own column', async () => {
+    const { layout, current, seat } = await boot()
+    vi.stubGlobal('document', { activeElement: null, querySelectorAll: () => [] })
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    const intents = layout.registerRightbarIntents.mock.calls[0]?.[0]
+    if (intents === undefined) throw new Error('expected the frame intents')
+    // No Session on screen: the intents ask for nothing.
+    current.set({ key: undefined })
+    expect(() => { intents.open() }).not.toThrow()
+    expect(() => { intents.close() }).not.toThrow()
+    const handle = seat('rightbar.session').store as ReturnType<typeof createSidebarRightStore>
+    const instance = handle.create(SESSION)
+    current.set({ key: SESSION })
+    intents.open()
+    expect(instance.getSnapshot().bySession[SESSION]?.layout.expanded).toBe(true)
+    // An expanded column has nothing to expand.
+    intents.open()
+    expect(instance.getSnapshot().bySession[SESSION]?.layout.expanded).toBe(true)
+    intents.close()
+    expect(instance.getSnapshot().bySession[SESSION]?.layout.expanded).toBe(false)
+    intents.close()
+    expect(instance.getSnapshot().bySession[SESSION]?.layout.expanded).toBe(false)
+  })
+
+  it('answers the frame\'s intents once its registrations are taken back', async () => {
+    const { ctx, layout, current, seat } = await boot()
+    const intents = layout.registerRightbarIntents.mock.calls[0]?.[0]
+    if (intents === undefined) throw new Error('expected the frame intents')
+    const handle = seat('rightbar.session').store as ReturnType<typeof createSidebarRightStore>
+    const instance = handle.create(SESSION)
+    current.set({ key: SESSION })
+    await ctx.fiber.dispose()
+    intents.open()
+    expect(instance.getSnapshot().bySession[SESSION]?.layout.expanded).toBeUndefined()
   })
 
   it('routes native close through the shortcut service and contains bridge rejections', async () => {
