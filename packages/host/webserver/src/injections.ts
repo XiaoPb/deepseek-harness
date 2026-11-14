@@ -23,8 +23,7 @@ export type IndexInjection =
    * loader resolves worker-only references such as `plugins/...`).
    */
   | { kind: 'script-src'; placement: IndexInjectionPlacement; src: string }
-  /** Advisory preload for an external classic script; static workers may ignore it. */
-  | { kind: 'script-preload'; src: string }
+  /** Advisory preload for an external classic script; static workers may ignore it. */  | { kind: 'script-preload'; src: string }
   /** A `<style>` element in the head. `text` must not contain `</style`, which would close the element early. */
   | { kind: 'style'; text: string }
   /** Raw markup fragment. */
@@ -60,7 +59,9 @@ function renderRow(row: IndexInjection): { placement: IndexInjectionPlacement; m
     case 'script-src':
       return { placement: row.placement, markup: `<script src="${escapeHtmlAttribute(row.src)}"></script>` }
     case 'script-preload':
-      return { placement: 'head', markup: `<link rel="preload" as="script" href="${escapeHtmlAttribute(row.src)}">` }
+      // Advisory hint only: a client bundle registers its factories by running, so a
+      // page whose bootstrap cannot preload still has to execute this row.
+      return { placement: 'head', markup: `<script src="${escapeHtmlAttribute(row.src)}"></script>` }
     case 'style':
       return { placement: 'head', markup: `<style>${row.text}</style>` }
     case 'html':
