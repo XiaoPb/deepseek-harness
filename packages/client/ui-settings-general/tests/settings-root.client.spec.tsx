@@ -553,3 +553,225 @@ it('passes current Settings key labels to the launcher and removes them when unb
   setShortcuts([{ ...row, keys: [], aria: undefined, binding: null, modified: true }])
   expect(launcher()).not.toHaveProperty('settingsShortcut')
 })
+
+describe('SettingsPanel strip navigation', () => {
+  const originalMatchMedia = window.matchMedia
+
+  /**
+   * Answer the strip query as a narrow frame does; every other query stays false.
+   * jsdom's own list has no `matches` override, so the shim carries the single
+   * field the shell reads.
+   */
+  function stripMode(): void {
+    const list = { matches: false, media: 'all' }
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string): MediaQueryList => {
+        list.matches = query === '(max-width: 767px)'
+        list.media = query
+        return list as MediaQueryList
+      },
+    })
+  }
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: originalMatchMedia })
+  })
+
+  /** The scrolling content column of the open panel. */
+  function content(): HTMLElement {
+    const section = screen.getByTestId('section-general')
+    const options = section.parentElement
+    if (options === null) throw new Error('expected the content column')
+    return options
+  }
+
+  /** Report a plausible width, which jsdom leaves at zero. */
+  function layOut(): void {
+    const options = content()
+    Object.defineProperty(options, 'clientWidth', { configurable: true, value: 400 })
+  }
+
+  /** One pointer contact on the content column at `x`. */
+  function contact(x: number, y = 200, pointerType = 'touch', isPrimary = true): void {
+    fireEvent.pointerDown(content(), { pointerId: 1, pointerType, isPrimary, clientX: x, clientY: y, button: 0 })
+  }
+
+  /** Move that contact to `x`. */
+  function move(x: number, y = 200): void {
+    fireEvent.pointerMove(content(), { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y })
+  }
+
+  /** Release that contact at `x`. */
+  function release(x: number, y = 200): void {
+    fireEvent.pointerUp(content(), { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y })
+  }
+
+  it('switches to the next section on a leftward swipe and to the previous one on a rightward swipe', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    contact(340)
+    move(300)
+    move(180)
+    release(180)
+    expect(screen.getByTestId('section-models')).toBeTruthy()
+  })
+
+  it('switches to the previous section on a rightward swipe', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }))
+    const section = screen.getByTestId('section-models')
+    const optionsElement = section.parentElement
+    if (optionsElement === null) throw new Error('expected the content column')
+    Object.defineProperty(optionsElement, 'clientWidth', { configurable: true, value: 400 })
+    fireEvent.pointerDown(optionsElement, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 60, clientY: 200, button: 0 })
+    fireEvent.pointerMove(optionsElement, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 100, clientY: 200 })
+    fireEvent.pointerMove(optionsElement, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 220, clientY: 200 })
+    fireEvent.pointerUp(optionsElement, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 220, clientY: 200 })
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+  })
+
+
+  it('moves the content with the pointer while a swipe is in progress', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    contact(300)
+    move(280)
+    move(200)
+    const options = content()
+    expect(options.getAttribute('data-swiping')).toBe('')
+    // 100px of leftward travel moves the content left by that distance; the
+    // tab keeps showing the committed section until the release commits.
+    expect(options.style.getPropertyValue('--dsh-settings-swipe-x')).toBe('-100px')
+    const highlighted = screen.getAllByRole('button').filter(node => node.getAttribute('aria-current') === 'true')
+    expect(highlighted.map(node => node.textContent)).toEqual(['General'])
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+  })
+
+  it('returns the content to rest without switching below the threshold', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    contact(300)
+    move(280)
+    release(280)
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    expect(content().hasAttribute('data-swiping')).toBe(false)
+    // The preview tab hands back to the committed section once the drag ends.
+    const highlighted = screen.getAllByRole('button').filter(node => node.getAttribute('aria-current') === 'true')
+    expect(highlighted.map(node => node.textContent)).toEqual(['General'])
+  })
+
+  it('leaves a stray tap alone until the pointer travels the follow distance', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    contact(300)
+    move(295)
+    const options = content()
+    expect(options.hasAttribute('data-swiping')).toBe(false)
+    expect(options.style.getPropertyValue('--dsh-settings-swipe-x')).toBe('')
+  })
+
+  it('keeps the first and last sections in place instead of wrapping', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    fireEvent.click(screen.getByRole('button', { name: 'Agent presets' }))
+    const lone = screen.getByTestId('section-agent-presets').parentElement
+    if (lone === null) throw new Error('expected the content column')
+    fireEvent.pointerDown(lone, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 300, clientY: 200, button: 0 })
+    fireEvent.pointerMove(lone, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 280, clientY: 200 })
+    fireEvent.pointerMove(lone, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 200, clientY: 200 })
+    fireEvent.pointerUp(lone, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: 200, clientY: 200 })
+    expect(screen.getByTestId('section-agent-presets')).toBeTruthy()
+  })
+
+  it('keeps the first section in place on a rightward swipe', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    contact(100)
+    move(120)
+    move(200)
+    release(200)
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+  })
+
+  it('leaves a mouse and a vertical drag to their own interactions', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    contact(300, 200, 'mouse')
+    move(100)
+    release(100)
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    layOut()
+    contact(300, 200)
+    move(290, 320)
+    release(290, 320)
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+  })
+
+  it('accepts a pen swiping across the content', () => {
+    stripMode()
+    mount()
+    openPanel()
+    layOut()
+    contact(340, 200, 'pen')
+    move(180)
+    release(180)
+    expect(screen.getByTestId('section-models')).toBeTruthy()
+  })
+
+  it('changes sections with the arrow, Home, and End keys without wrapping', () => {
+    stripMode()
+    mount()
+    openPanel()
+    const nav = screen.getByRole('navigation')
+    fireEvent.keyDown(nav, { key: 'ArrowRight' })
+    expect(screen.getByTestId('section-models')).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Models' }))
+    fireEvent.keyDown(nav, { key: 'ArrowLeft' })
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    fireEvent.keyDown(nav, { key: 'ArrowLeft' })
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    fireEvent.keyDown(nav, { key: 'End' })
+    expect(screen.getByTestId('section-agent-presets')).toBeTruthy()
+    fireEvent.keyDown(nav, { key: 'ArrowRight' })
+    expect(screen.getByTestId('section-agent-presets')).toBeTruthy()
+    fireEvent.keyDown(nav, { key: 'Home' })
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+    fireEvent.keyDown(nav, { key: 'Tab' })
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+  })
+
+  it('keeps a single tab stop in the strip', () => {
+    stripMode()
+    mount()
+    openPanel()
+    const stops = ['General', 'Models', 'Agent presets']
+      .map(name => screen.getByRole('button', { name }).getAttribute('tabindex'))
+    expect(stops).toEqual(['0', '-1', '-1'])
+  })
+
+  it('keeps the strip keys out of the desktop rail', () => {
+    mount()
+    openPanel()
+    fireEvent.keyDown(screen.getByRole('navigation'), { key: 'ArrowRight' })
+    expect(screen.getByTestId('section-general')).toBeTruthy()
+  })
+})
