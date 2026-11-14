@@ -51,11 +51,32 @@ export interface ILayout {
   openRightbar(track: boolean, fullscreen: boolean): void
   /** Report the right panel as hidden: no track, no handle. */
   closeRightbar(): void
+  /**
+   * Ask the right column's occupant to expand its panel for the on-screen
+   * Session. The occupant owns that state; until it registers a handler this is
+   * a no-op, and so it stays for a profile without a right column.
+   */
+  openRightbarIntent(): void
+  /**
+   * Ask the right column's occupant to collapse its panel for the on-screen
+   * Session, with no Session on screen, or before any handler is registered:
+   * nothing happens.
+   */
+  closeRightbarIntent(): void
+}
+
+/** Expand/collapse commands the right column's occupant answers. */
+export interface RightbarIntents {
+  /** Expand the panel for the on-screen Session. */
+  open: () => void
+  /** Collapse the panel for the on-screen Session. */
+  close: () => void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
 export class LayoutController implements ILayout {
   private navigation = new AbortController()
+  private rightbarIntents: RightbarIntents | undefined
 
   /**
    * @param panels - actions of the instance shared with the root entry.
@@ -102,5 +123,28 @@ export class LayoutController implements ILayout {
   /** Report the right panel as hidden: no track, no handle. */
   closeRightbar(): void {
     this.panels.closeRightbar()
+  }
+
+  /**
+   * Register the commands the right column's occupant answers, replacing any
+   * earlier registration.
+   * @param intents - expand and collapse commands for the on-screen Session.
+   * @returns the disposer; it restores the previous registration, so an
+   *   unload leaves the face as it found it.
+   */
+  registerRightbarIntents(intents: RightbarIntents): () => void {
+    const previous = this.rightbarIntents
+    this.rightbarIntents = intents
+    return () => { this.rightbarIntents = previous }
+  }
+
+  /** Ask the right column's occupant to expand its panel. */
+  openRightbarIntent(): void {
+    this.rightbarIntents?.open()
+  }
+
+  /** Ask the right column's occupant to collapse its panel. */
+  closeRightbarIntent(): void {
+    this.rightbarIntents?.close()
   }
 }

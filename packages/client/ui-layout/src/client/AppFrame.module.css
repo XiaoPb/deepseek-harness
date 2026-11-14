@@ -6,6 +6,8 @@
   box-sizing: border-box;
   overflow: hidden;
   background: var(--dsw-alias-bg-base);
+  /* Vertical panning stays native; horizontal travel is the frame's swipe. */
+  touch-action: pan-y;
 }
 
 /* Only discrete collapse/expand and fold changes ease the tracks (the TSX holds

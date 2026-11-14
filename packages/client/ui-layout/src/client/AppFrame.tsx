@@ -20,6 +20,10 @@ import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import { CENTER_MIN, clampWidth, computeColumns, RIGHTBAR_DEFAULT_RATIO, RIGHTBAR_MAX_RATIO, RIGHTBAR_MIN, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT, SIDEBAR_DRAWER_BREAKPOINT } from './columns.ts'
+import {
+  confirmSwipeTarget, isFormControlTarget, isHorizontalSwipe, isSwipePointer, resolveSwipeTarget, swipeActivated,
+} from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SwipeTarget } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DocumentTitle } from './DocumentTitle.tsx'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
@@ -27,6 +31,11 @@ import css from './AppFrame.module.css'
 /** Browser posture supplied by the root registration. */
 export interface AppFrameInjected {
   hooks: { foldedLandscape: HostObservable<boolean> }
+  /** One-direction commands for the right column's occupant; no-ops until it registers them. */
+  frame: {
+    openRightbarIntent: () => void
+    closeRightbarIntent: () => void
+  }
 }
 
 /** Full composed props: runtime, child slots, store, locale, and injected posture. */
@@ -48,6 +57,44 @@ function MainPanel({ usePanelInfo, renderSlot }: Pick<PropsRuntime<'root'>, 'use
   return <div className={css.mainPanel} data-global-panel={panelId !== null || undefined}>
     {renderSlot('main', {}, { entryKey: panelId ?? 'conversation' })}
   </div>
+}
+
+/** One in-flight swipe between its press and its release. */
+interface SwipeRun {
+  pointerId: number
+  x: number
+  y: number
+  active: boolean
+  target: SwipeTarget | undefined
+}
+
+/**
+ * Advance one swipe to the pointer's current point: a press becomes a swipe once
+ * it travels far enough horizontally, and the target resolves from the start
+ * point at that moment.
+ * @param run - the swipe being tracked; updated in place.
+ * @param clientX - pointer position in px from the frame's left edge.
+ * @param clientY - pointer position in px from the frame's top edge.
+ * @param frameWidth - frame width in px.
+ * @param sidebarOpen - whether the left column is expanded.
+ * @param rightbarOpen - whether the right column is expanded.
+ */
+function trackSwipe(
+  run: SwipeRun,
+  clientX: number,
+  clientY: number,
+  frameWidth: number,
+  sidebarOpen: boolean,
+  rightbarOpen: boolean,
+): void {
+  if (run.active) return
+  const dx = clientX - run.x
+  const dy = clientY - run.y
+  if (!swipeActivated(dx, dy)) return
+  if (!isHorizontalSwipe(dx, dy)) return
+  run.active = true
+  const resolved = resolveSwipeTarget({ frameWidth, startX: run.x, sidebarOpen, rightbarOpen }, dx)
+  run.target = resolved === undefined ? undefined : confirmSwipeTarget(resolved, dx)
 }
 
 /**
@@ -132,6 +179,7 @@ export function AppFrame({
   usePanelInfo,
   useFoldedLandscape,
   actions,
+  frame,
   renderSlot,
   t,
 }: AppFrameProps) {
@@ -258,6 +306,53 @@ export function AppFrame({
   const onRightbarDrag = useCallback((dx: number) => {
     actions.setRightbar(rightbarBase.current - dx)
   }, [actions])
+
+  // Swipe on a touch screen: the gesture names its side and commits in the
+  // direction it was dragged, so a state that changed mid-gesture cannot invert
+  // it. A mouse never starts one, which keeps desktop dragging and selection.
+  // The target resolves on the first qualifying move, because only travel names
+  // the edge a fresh swipe opens; an open column resolves from any start point,
+  // so the panel itself can be swiped away.
+  const swipeStart = useRef<SwipeRun | null>(null)
+  const requestRightbar = useCallback((open: boolean) => {
+    if (open) frame.openRightbarIntent()
+    else frame.closeRightbarIntent()
+  }, [frame])
+
+  const onFramePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (swipeStart.current !== null) return
+    if (!isSwipePointer(event.nativeEvent)) return
+    if (isFormControlTarget(event.target as Element)) return
+    // A covering dialog owns the gesture: the settings panel slides its own
+    // sections, and a modal that leaves the frame swiping behind it would move
+    // columns the user cannot see. The left drawer is a modal too, but it lives
+    // inside the frame and must keep the swipe that closes it.
+    if (document.querySelector('[aria-modal="true"]:not([data-shortcut-modal="sidebar"])') !== null) return
+    swipeStart.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      active: false,
+      target: undefined,
+    }
+  }, [])
+  const onFramePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const run = swipeStart.current
+    if (run === null || run.pointerId !== event.pointerId || run.active) return
+    trackSwipe(run, event.clientX, event.clientY, viewport, !sidebarCollapsed, layoutInfo.rightbarShown)
+  }, [viewport, sidebarCollapsed, layoutInfo.rightbarShown])
+  const onFramePointerEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const run = swipeStart.current
+    if (run === null || run.pointerId !== event.pointerId) return
+    // A cancelled sequence still carries where the finger got to: the browser
+    // cancels the pointer when it claims the drag for scrolling or for a
+    // long-press, and the swipe the user drew is the same gesture either way.
+    if (!run.active) trackSwipe(run, event.clientX, event.clientY, viewport, !sidebarCollapsed, layoutInfo.rightbarShown)
+    swipeStart.current = null
+    if (!run.active || run.target === undefined) return
+    if (run.target.side === 'sidebar') actions.setSidebarExpanded(run.target.action === 'open')
+    else requestRightbar(run.target.action === 'open')
+  }, [actions, requestRightbar, viewport, sidebarCollapsed, layoutInfo.rightbarShown])
   const productTitle = process.env.DSH_CLIENT_TITLE ?? t('brand.localBuild')
   // The rendered template lets the grid solve the squeeze natively: the centre
   // declares its protected minimum and the right column bids up to the clamped
@@ -303,6 +398,10 @@ export function AppFrame({
       data-rightbar-instant={layoutInfo.rightbarInstant || undefined}
       data-dragging={dragging || undefined}
       data-animating={animateTracks || undefined}
+      onPointerDown={onFramePointerDown}
+      onPointerMove={onFramePointerMove}
+      onPointerUp={onFramePointerEnd}
+      onPointerCancel={onFramePointerEnd}
     >
       <DocumentTitle
         productTitle={productTitle}

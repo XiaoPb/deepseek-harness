@@ -9,6 +9,7 @@ function fakePanels(): PanelActions {
     retainMainPanels: vi.fn(),
     setSidebar: vi.fn(),
     toggleSidebar: vi.fn(),
+    setSidebarExpanded: vi.fn(),
     setViewportWidth: vi.fn(),
     setRightbar: vi.fn(),
     openRightbar: vi.fn(),
@@ -101,5 +102,37 @@ describe('LayoutController', () => {
     service.dispose()
     expect(pending.aborted).toBe(true)
     service.dispose()
+  })
+
+  it('drops right column intents while no occupant answers them', () => {
+    const service = new LayoutController(fakePanels(), () => true, createSnapshotStore({ activePanelId: null }))
+    expect(() => { service.openRightbarIntent() }).not.toThrow()
+    expect(() => { service.closeRightbarIntent() }).not.toThrow()
+  })
+
+  it('forwards right column intents to the registered occupant', () => {
+    const service = new LayoutController(fakePanels(), () => true, createSnapshotStore({ activePanelId: null }))
+    const open = vi.fn()
+    const close = vi.fn()
+    service.registerRightbarIntents({ open, close })
+    service.openRightbarIntent()
+    service.closeRightbarIntent()
+    expect(open).toHaveBeenCalledOnce()
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('restores the previous registration when the occupant unloads', () => {
+    const service = new LayoutController(fakePanels(), () => true, createSnapshotStore({ activePanelId: null }))
+    const first = vi.fn()
+    const second = vi.fn()
+    const releaseFirst = service.registerRightbarIntents({ open: first, close: first })
+    const releaseSecond = service.registerRightbarIntents({ open: second, close: second })
+    releaseSecond()
+    service.openRightbarIntent()
+    expect(first).toHaveBeenCalledOnce()
+    expect(second).not.toHaveBeenCalled()
+    releaseFirst()
+    service.openRightbarIntent()
+    expect(first).toHaveBeenCalledOnce()
   })
 })
